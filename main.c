@@ -2,17 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include "webserver.h"
 
 #define MAX_VALID_PORT  2<<15
 #define MIN_VALID_PORT  0
 #define MAX_SIM_CONN    64
-#define BOOLEAN_TRUE 		1
-#define BOOLEAN_FALSE 	0
-
-void process_web_request(int socket,char* dirPath) {
-	printf("request on %s\n",dirPath);
-	exit(0);
-}
 
 int isPortValid(int port) {
 	return (port > MIN_VALID_PORT && port < MAX_VALID_PORT);
