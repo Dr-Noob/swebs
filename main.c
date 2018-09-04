@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <arpa/inet.h>
 
 #include "http.h"
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
 	socklen_t length = sizeof(cli_addr);
 
 	if((listenfd = socket(AF_INET, SOCK_STREAM,0)) < 0) {
-		perror("main");
+		perror("main: socket");
 		return EXIT_FAILURE;
 	}
 
@@ -57,32 +58,42 @@ int main(int argc, char *argv[]) {
 	serv_addr.sin_port = htons(port);
 
 	if(bind(listenfd, (struct sockaddr *)&serv_addr,sizeof(serv_addr)) == -1) {
-		perror("main");
+		perror("main: bind");
 		return EXIT_FAILURE;
 	}
 
 	if(listen(listenfd,MAX_SIM_CONN) == -1) {
-		perror("main");
+		perror("main: listen");
 		return EXIT_FAILURE;
 	}
 
 	while(BOOLEAN_TRUE) {
 		processRequest = BOOLEAN_TRUE;
 		if((socketfd = accept(listenfd, (struct sockaddr *)&cli_addr, &length)) < 0) {
-			perror("main");
+			perror("main: accept");
 			processRequest = BOOLEAN_FALSE;
 		}
-		if((pid = fork()) < 0) {
-			perror("main");
-			processRequest = BOOLEAN_FALSE;
+
+		//Create thread and let it handle request
+		pthread_attr_t attr;
+		if(pthread_attr_init(&attr) != 0) {
+			perror("main: pthread_attr_init");
+			return EXIT_FAILURE;
 		}
-		if(processRequest) {
-			if(pid == 0) {
-				close(listenfd);
-				process_web_request(socketfd, argv[2]);
-			} else {
-				close(socketfd);
-			}
+		//Set DETACHED flag, so main thread wont need to call join to
+		//clean up thread when finished
+		if(pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED) != 0) {
+			perror("main: pthread_attr_setdetachstate");
+			return EXIT_FAILURE;
 		}
+		struct req_struct* req = malloc(sizeof(struct req_struct));
+		req->socket = socketfd;
+		req->dirPath = argv[2];
+
+		pthread_t req_thread;
+		if(pthread_create(&req_thread, &attr, &process_web_request, req) != 0) {
+  		perror("main: pthread_create");
+  		return EXIT_FAILURE;
+    }
 	}
 }

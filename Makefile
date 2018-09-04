@@ -9,11 +9,7 @@ HEADERS=webserver.h get.h http.h
 
 OUTPUT=swebs
 
-$(OUTPUT): Makefile $(MAIN) $(WEBSERVER) $(HEADERS)
-	$(CXX) $(SANITY_FLAGS) -lm $(MAIN) $(WEBSERVER) $(GET) -o $(OUTPUT)
-valgrind:
-	valgrind --trace-children=yes ./$(OUTPUT) 8888 .
+$(OUTPUT): Makefile $(MAIN) $(WEBSERVER) $(GET) $(HEADERS)
+	$(CXX) $(SANITY_FLAGS) -g -lm -pthread $(MAIN) $(WEBSERVER) $(GET) -o $(OUTPUT)
 clean:
 	rm $(OUTPUT)
-run:
-	./$(OUTPUT) 8888 .

@@ -211,7 +211,11 @@ int send_page(int socket, int http_code, int fd, int lenght, char* extension) {
   }
 }
 
-void process_web_request(int socket,char* dirPath) {
+void* process_web_request(void* param) {
+  struct req_struct *req = (struct req_struct*)param;
+  int socket = req->socket;
+  char* dirPath = req->dirPath;
+
   int bytes_read = 0;
   int count = 0;
   int end = BOOLEAN_FALSE;
@@ -221,7 +225,7 @@ void process_web_request(int socket,char* dirPath) {
   char* method = NULL;
   char* resource = NULL;
 
-  printf("Socket accepted\n");
+  printf("Socket accepted(%d)\n",socket);
 
   do {
 
@@ -268,7 +272,9 @@ void process_web_request(int socket,char* dirPath) {
 
   } while(!socketClosed);
 
-  close(socket);
+  if(close(socket) == -1)
+    perror("process_web_request: close");
   printf("Socket closed(%d)\n",socket);
-  exit(0);
+  free(param);
+  return NULL;
 }
