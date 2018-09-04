@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+
+#include "http.h"
 #include "webserver.h"
 
 #define MAX_VALID_PORT  2<<15
@@ -21,6 +23,7 @@ int isValidPath(char* path) {
 }
 
 int main(int argc, char *argv[]) {
+	fprintf(stderr,"%s -- v%s\n",SERVER_NAME,SERVER_VERSION);
 	if(argc != 3) {
 		fprintf(stderr,"ERROR: Must specify two arguments.\n");
 		fprintf(stderr,"Usage %s PORT DIRECTORY\n",argv[0]);

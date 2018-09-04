@@ -11,9 +11,7 @@
 #include "get.h"
 #include "webserver.h"
 
-#define BUFSIZE       8096
-#define ERROR           42
-#define LOG             44
+#define BUF_SIZE     2<<12
 #define GET_METHOD   "GET"
 
 /* PAGES */
@@ -124,37 +122,37 @@ char* getResource(char* httpMessage) {
 int send_page(int socket, int http_code, int fd, int lenght, char* extension) {
   char* page = NULL;
   char* code_response = NULL;
-  int code_size = 0;
+  int headerSize = 0;
 
   switch (http_code) {
     case HTTP_CODE_200:
-      code_size = RESPONSE_200_SIZE;
+      headerSize = HEADER_200_SIZE;
       code_response = RESPONSE_200;
       break;
     case HTTP_CODE_400:
       page = PAGE_400;
-      code_size = RESPONSE_400_SIZE;
+      headerSize = HEADER_400_SIZE;
       code_response = RESPONSE_400;
       lenght = strlen(page);
       extension = MIME_HTML;
       break;
     case HTTP_CODE_403:
       page = PAGE_403;
-      code_size = RESPONSE_403_SIZE;
+      headerSize = HEADER_403_SIZE;
       code_response = RESPONSE_403;
       lenght = strlen(page);
       extension = MIME_HTML;
       break;
     case HTTP_CODE_404:
       page = PAGE_404;
-      code_size = RESPONSE_404_SIZE;
+      headerSize = HEADER_404_SIZE;
       code_response = RESPONSE_404;
       lenght = strlen(page);
       extension = MIME_HTML;
       break;
     case HTTP_CODE_500:
       page = PAGE_500;
-      code_size = RESPONSE_500_SIZE;
+      headerSize = HEADER_500_SIZE;
       code_response = RESPONSE_500;
       lenght = strlen(page);
       extension = MIME_HTML;
@@ -162,107 +160,94 @@ int send_page(int socket, int http_code, int fd, int lenght, char* extension) {
     default:
       printf("FATAL ERROR: Invalid http code %d\n",http_code);
   }
-  assert(code_size != 0);
+  assert(headerSize != 0);
 
   int digits = floor(log10(abs(lenght))) + 1;
-  int headerSize = code_size + headerServerSize + headerKeepAliveSize +
-                   headerConnectionSize + headerContentTypeSize + strlen(extension) + 2 +
-                   headerContentLengthSize + digits + 2 + 2;
-
-  Header header = malloc(sizeof(struct Header));
-  header->size = headerSize;
-  header->content = malloc(sizeof(char)* header->size + 1);
-  memset(header->content,0,header->size);
-  snprintf(header->content, sizeof(char)* header->size + 1,
-                                                           "%s"
-                                                           HEADER_SERVER
-                                                           HEADER_CONTENTTYPE"%s\r\n"
-                                                           HEADER_KEEP_ALIVE
-                                                           HEADER_CONNECTION
-                                                           HEADER_CONTENTLENGHT"%d\r\n"
-                                                           "\r\n"
-                                                           ,code_response,extension,lenght);
+  //We add the size of extension and lenght of digits
+  //to the fixed-size of the HTTP code selected on
+  //previous switch-case
+  headerSize += strlen(extension) + digits;
+  char content[sizeof(char)* headerSize + 1];
+  snprintf(content, sizeof(char)* headerSize + 1,
+                                                "%s"
+                                                HEADER_SERVER
+                                                HEADER_CONTENTTYPE"%s\r\n"
+                                                HEADER_KEEP_ALIVE
+                                                HEADER_CONNECTION
+                                                HEADER_CONTENTLENGHT"%d\r\n"
+                                                "\r\n"
+                                                ,code_response,extension,lenght);
   if(http_code == HTTP_CODE_200) {
-    write_all(socket,header->content,header->size);
+    //First, write header
+    write_all(socket,content,headerSize);
 
-    //Read file and write it in 8KB block size
+    //Now read file and write it to the socket
     int bytes_read = 0;
-    int block_size = 2<<12;
-    char* buf = malloc(sizeof(char)*block_size);
-    memset(buf, 0, sizeof(char)*block_size);
-
-    while (  (bytes_read = read(fd, buf, block_size)) > 0 )
-            write_all(socket,buf,bytes_read);
-
-    free(buf);
-    free(header->content);
-    free(header);
+    int write_status = 0;
+    char buf[sizeof(char)*BUF_SIZE];
+    do {
+      bytes_read = read(fd, buf, BUF_SIZE);
+      write_status = write_all(socket,buf,bytes_read);
+    } while(bytes_read > 0 && write_status);
 
     if(bytes_read == -1) {
-      perror("code200: read");
+      perror("send_page: HTTP_CODE_200: read");
       send_page(socket, HTTP_CODE_500, 0, 0, NULL);
+      return EXIT_FAILURE;
     }
+    else if(!write_status)
+      return EXIT_FAILURE;
+    else
+      return EXIT_SUCCESS;
   }
   else {
-    int responseSize = lenght + header->size;
+    //We append static page to the header
+    int responseSize = lenght + headerSize;
     char response[responseSize];
-    memset(response, 0, responseSize);
-    strcpy(response, header->content);
-    memcpy(response+header->size,page,lenght);
+    memcpy(response, content, headerSize);
+    memcpy(response+headerSize,page,lenght);
 
-    write_all(socket,response,responseSize);
-    free(header->content);
-    free(header);
+    return write_all(socket,response,responseSize);
   }
-
-  return EXIT_SUCCESS;
 }
 
 void process_web_request(int socket,char* dirPath) {
-  int buf_size = 4096;
   int bytes_read = 0;
-  int flick = 128;
   int count = 0;
-  char buf[buf_size];
-
   int end = BOOLEAN_FALSE;
   int socketClosed = BOOLEAN_FALSE;
 
+  char buf[BUF_SIZE];
   char* method = NULL;
   char* resource = NULL;
 
-  printf("Socket accepted(%d)\n",socket);
-  fflush(stdout);
+  printf("Socket accepted\n");
 
   do {
-    count = 0;
-    bytes_read = 0;
-    end = BOOLEAN_FALSE;
-    memset(buf, 0, buf_size);
 
-    while (!end && (bytes_read = read(socket, buf+count, flick)) > 0) {
-      count += bytes_read;
+    do {
+      bytes_read = read(socket, buf, BUF_SIZE);
       end = messageFinished(buf,count);
-    }
+    } while(!end && bytes_read > 0);
 
     if(bytes_read == -1) {
       perror("process_web_request: read");
       send_page(socket, HTTP_CODE_500, 0, 0, NULL);
       socketClosed = BOOLEAN_TRUE;
     }
-
-    if(bytes_read == 0) {
+    else if(bytes_read == 0) {
       //Connection closed by the client
       socketClosed = BOOLEAN_TRUE;
     }
-    if(strlen(buf) != 0) {
+    else {
+      //We have data on buf
       method = getMethod(buf);
       resource = getResource(buf);
 
       if(method == NULL || resource == NULL) {
         printf("ERROR: Malformed request\n");
         printf("[%s]\n",buf);
-        fflush(stdout);
+
         send_page(socket, HTTP_CODE_400, 0, 0, NULL);
         socketClosed = BOOLEAN_TRUE;
         if(method != NULL)free(method);
@@ -270,7 +255,6 @@ void process_web_request(int socket,char* dirPath) {
       }
       else {
         printf("Requested by %s resource %s\n",method,resource);
-        fflush(stdout);
 
         if(strcmp(method,GET_METHOD) == 0)
           handleGet(socket, dirPath, resource);
@@ -286,6 +270,5 @@ void process_web_request(int socket,char* dirPath) {
 
   close(socket);
   printf("Socket closed(%d)\n",socket);
-  fflush(stdout);
   exit(0);
 }

@@ -2,7 +2,7 @@
 #define __HTTP__
 
 #define SERVER_NAME 		"swebs"
-#define SERVER_VERSION	"1.0"
+#define SERVER_VERSION	"1.1"
 #define MIME_HTML			 	"text/html"
 
 /* HTTP CODE */
@@ -13,11 +13,11 @@
 #define HTTP_CODE_404  404
 #define HTTP_CODE_500  500
 
-static char RESPONSE_200[] = "HTTP/1.1 200 OK\r\n";
-static char RESPONSE_400[] = "HTTP/1.1 400 Bad Request\r\n";
-static char RESPONSE_403[] = "HTTP/1.1 403 Forbidden\r\n";
-static char RESPONSE_404[] = "HTTP/1.1 404 Not Found\r\n";
-static char RESPONSE_500[] = "HTTP/1.1 500 Internal Server Error\r\n";
+#define RESPONSE_200 "HTTP/1.1 200 OK\r\n"
+#define RESPONSE_400 "HTTP/1.1 400 Bad Request\r\n"
+#define RESPONSE_403 "HTTP/1.1 403 Forbidden\r\n"
+#define RESPONSE_404 "HTTP/1.1 404 Not Found\r\n"
+#define RESPONSE_500 "HTTP/1.1 500 Internal Server Error\r\n"
 
 #define RESPONSE_200_SIZE 17
 #define RESPONSE_400_SIZE 26
@@ -35,19 +35,20 @@ static char RESPONSE_500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 #define HEADER_CONTENTTYPE		"Content-Type: "
 #define HEADER_CONTENTLENGHT	"Content-Length: "
 
-#define headerServerSize 				26
-#define headerKeepAliveSize 		23
-#define headerConnectionSize 		24
-#define headerContentTypeSize 	14
-#define headerContentLengthSize 16
+#define HEADER_SERVER_SIZE 				26
+#define HEADER_KEEP_ALIVE_SIZE 		23
+#define HEADER_CONNECTION_SIZE 		24
+#define HEADER_CONTENTTYPE_SIZE 	14
+#define HEADER_CONTENTLENGHT_SIZE 16
+
+#define TOTAL_HEADER_SIZE HEADER_SERVER_SIZE+HEADER_KEEP_ALIVE_SIZE+HEADER_CONNECTION_SIZE+HEADER_CONTENTTYPE_SIZE+2+HEADER_CONTENTLENGHT_SIZE+2+2
+
+#define HEADER_200_SIZE RESPONSE_200_SIZE+TOTAL_HEADER_SIZE
+#define HEADER_400_SIZE RESPONSE_400_SIZE+TOTAL_HEADER_SIZE
+#define HEADER_403_SIZE RESPONSE_403_SIZE+TOTAL_HEADER_SIZE
+#define HEADER_404_SIZE RESPONSE_404_SIZE+TOTAL_HEADER_SIZE
+#define HEADER_500_SIZE RESPONSE_500_SIZE+TOTAL_HEADER_SIZE
 
 /* END HEADERS */
-
-struct Header {
-	int size;
-	char* content;
-};
-
-typedef struct Header *Header;
 
 #endif
