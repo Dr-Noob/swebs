@@ -74,6 +74,11 @@ int main(int argc, char *argv[]) {
 			processRequest = BOOLEAN_FALSE;
 		}
 
+		//Get ip of the request
+    char* ipAddress = malloc(sizeof(char)*INET_ADDRSTRLEN);
+    if(inet_ntop(AF_INET, &(cli_addr.sin_addr), ipAddress, INET_ADDRSTRLEN) == NULL)
+      perror("main: inet_ntop");
+
 		//Create thread and let it handle request
 		pthread_attr_t attr;
 		if(pthread_attr_init(&attr) != 0) {
@@ -89,6 +94,7 @@ int main(int argc, char *argv[]) {
 		struct req_struct* req = malloc(sizeof(struct req_struct));
 		req->socket = socketfd;
 		req->dirPath = argv[2];
+		req->ipAddress = ipAddress;
 
 		pthread_t req_thread;
 		if(pthread_create(&req_thread, &attr, &process_web_request, req) != 0) {

@@ -7,8 +7,17 @@
 struct req_struct {
   int socket;
   char* dirPath;
+  char* ipAddress;
 };
 
+struct http_request {
+  char* method;
+  char* resource;
+  char* ip;
+  char* ua;
+};
+
+int write_all(int fd, char* buf,int bytesToWrite);
 void* process_web_request(void* param);
 int send_page(int socket, int http_code, int fd, int lenght, char* extension);
 

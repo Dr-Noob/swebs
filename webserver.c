@@ -10,6 +10,7 @@
 #include "http.h"
 #include "get.h"
 #include "webserver.h"
+#include "log.h"
 
 #define BUF_SIZE     2<<12
 #define GET_METHOD   "GET"
@@ -76,6 +77,30 @@ int write_all(int fd, char* buf,int bytesToWrite) {
 
 int messageFinished(char* message, int size) {
   return strstr(message, "\r\n\r\n") != NULL;
+}
+
+//Returns a string with the user agent in
+//HTTP message, or NULL if not found
+char* getUserAgent(char* httpMessage) {
+	//Principio del UA
+	char* start = strstr (httpMessage,HEADER_USERAGENT);
+	if(start == NULL)
+		return NULL;
+
+	//Poner puntero en el primer byte del UA
+
+	start += HEADER_USERAGENT_SIZE;
+	//Final del UA
+  char* end = strstr (start, "\r\n");
+
+	if(end == NULL)
+    return NULL;
+
+	int lenght = end-start;
+	char* m = malloc(sizeof(char)*(lenght+1));
+	memset(m,0,sizeof(char)*(lenght+1));
+	strncpy(m, start, lenght);
+  return m;
 }
 
 //Returns a string with the method in
@@ -222,8 +247,7 @@ void* process_web_request(void* param) {
   int socketClosed = BOOLEAN_FALSE;
 
   char buf[BUF_SIZE];
-  char* method = NULL;
-  char* resource = NULL;
+  struct http_request* http_req;
 
   printf("Socket accepted(%d)\n",socket);
 
@@ -245,29 +269,35 @@ void* process_web_request(void* param) {
     }
     else {
       //We have data on buf
-      method = getMethod(buf);
-      resource = getResource(buf);
+      http_req = malloc(sizeof(struct http_request));
+			http_req->method = getMethod(buf);
+			http_req->resource = getResource(buf);
+			http_req->ua = getUserAgent(buf);
+			http_req->ip = req->ipAddress;
 
-      if(method == NULL || resource == NULL) {
+      if(http_req->method == NULL || http_req->resource == NULL) {
         printf("ERROR: Malformed request\n");
         printf("[%s]\n",buf);
 
         send_page(socket, HTTP_CODE_400, 0, 0, NULL);
         socketClosed = BOOLEAN_TRUE;
-        if(method != NULL)free(method);
-        if(resource != NULL)free(resource);
+        if(http_req->method != NULL)free(http_req->method);
+        if(http_req->resource != NULL)free(http_req->resource);
       }
       else {
+        print_log(http_req);
         printf("Requested by %s resource %s\n",method,resource);
 
-        if(strcmp(method,GET_METHOD) == 0)
-          handleGet(socket, dirPath, resource);
+        if(strcmp(http_req->method,GET_METHOD) == 0)
+          handleGet(socket, dirPath, http_req->resource);
         else
           send_page(socket, HTTP_CODE_400, 0, 0, NULL);
 
-        free(resource);
-        free(method);
+        free(http_req->resource);
+        free(http_req->method);
       }
+      if(http_req->ua != NULL)free(http_req->ua);
+			free(http_req);
     }
 
   } while(!socketClosed);
@@ -275,6 +305,7 @@ void* process_web_request(void* param) {
   if(close(socket) == -1)
     perror("process_web_request: close");
   printf("Socket closed(%d)\n",socket);
-  free(param);
+  free(req->ipAddress);
+  free(req);
   return NULL;
 }
