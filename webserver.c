@@ -183,7 +183,7 @@ int send_page(int socket, int http_code, int fd, int lenght, char* extension) {
       extension = MIME_HTML;
       break;
     default:
-      printf("FATAL ERROR: Invalid http code %d\n",http_code);
+      fprintf(stderr,"FATAL ERROR: Invalid http code %d\n",http_code);
   }
   assert(headerSize != 0);
 
@@ -276,8 +276,8 @@ void* process_web_request(void* param) {
 			http_req->ip = req->ipAddress;
 
       if(http_req->method == NULL || http_req->resource == NULL) {
-        printf("ERROR: Malformed request\n");
-        printf("[%s]\n",buf);
+        fprintf(stderr,"ERROR: Malformed request\n");
+        fprintf(stderr,"[%s]\n",buf);
 
         send_page(socket, HTTP_CODE_400, 0, 0, NULL);
         socketClosed = BOOLEAN_TRUE;
@@ -286,7 +286,7 @@ void* process_web_request(void* param) {
       }
       else {
         print_log(http_req);
-        printf("Requested by %s resource %s\n",method,resource);
+        printf("Requested by %s resource %s\n",http_req->method,http_req->resource);
 
         if(strcmp(http_req->method,GET_METHOD) == 0)
           handleGet(socket, dirPath, http_req->resource);

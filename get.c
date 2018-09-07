@@ -127,8 +127,7 @@ void handleGet(int socket, char*dirPath, char* resource) {
 		return;
 	}
 	if(!S_ISREG(st.st_mode)) {
-		printf("%s: not a file\n",path);
-		fflush(stdout);
+		fprintf(stderr,"ERROR: '%s' is not a file\n",path);
 		send_page(socket, HTTP_CODE_404, 0, 0, NULL);
 		fclose(file);
 		return;
@@ -137,8 +136,7 @@ void handleGet(int socket, char*dirPath, char* resource) {
 	//We check that file is not in a higher
 	//hirerachy's directory
 	if(forbidden(path, dirPath)) {
-		printf("%s: forbidden\n",path);
-		fflush(stdout);
+		fprintf(stderr,"ERROR: '%s' is forbidden\n",path);
 		send_page(socket, HTTP_CODE_403, 0, 0, NULL);
 		return;
 	}
@@ -160,15 +158,12 @@ void handleGet(int socket, char*dirPath, char* resource) {
 		}
 
 		if(fileType == NULL)  {
-			printf("ERROR: Extension .%s is not supported\n",extension);
-			fflush(stdout);
+			fprintf(stderr,"ERROR: Extension .%s is not supported\n",extension);
 			send_page(socket, HTTP_CODE_400, 0, 0, NULL);
 			fclose(file);
 			return;
 		}
 	}
-	printf("fileType '%s'\n",fileType);
-	fflush(stdout);
 
 	send_page(socket, HTTP_CODE_200, fd, st.st_size, fileType);
 	fclose(file);
