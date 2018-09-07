@@ -157,12 +157,10 @@ void handleGet(int socket, char*dirPath, char* resource) {
 			}
 		}
 
-		if(fileType == NULL)  {
-			fprintf(stderr,"ERROR: Extension .%s is not supported\n",extension);
-			send_page(socket, HTTP_CODE_400, 0, 0, NULL);
-			fclose(file);
-			return;
-		}
+		//If we do not find the extension on the list,
+		//we assume it is plain text
+		if(fileType == NULL) 
+			fileType = MIME_PLAIN_TEX;
 	}
 
 	send_page(socket, HTTP_CODE_200, fd, st.st_size, fileType);
