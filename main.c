@@ -1,45 +1,35 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <pthread.h>
 #include <arpa/inet.h>
 
 #include "http.h"
 #include "webserver.h"
+#include "args.h"
+#include "log.h"
 
-#define MAX_VALID_PORT  2<<15
-#define MIN_VALID_PORT  0
 #define MAX_SIM_CONN    64
 
-int isPortValid(int port) {
-	return (port > MIN_VALID_PORT && port < MAX_VALID_PORT);
-}
-
-int isValidPath(char* path) {
-	if(access(path,W_OK) != 0) {
-		perror("isValidPath: access");
-		return BOOLEAN_FALSE;
-	}
-	return BOOLEAN_TRUE;
+void help(int argc, char *argv[]) {
+	fprintf(stderr,"Usage %s [--port=PORT] [--dir=DIR] [--log=DIR] [--help]\n",argv[0]);
+	fprintf(stderr,"\t --port: Port in which webserver will be listening                  (Default: %d)\n",DEFAULT_PORT);
+	fprintf(stderr,"\t --dir:  Directory in which the server will scan files to be served (Default: %s)\n",DEFAULT_DIR);
+	fprintf(stderr,"\t --log:  Directory in which the server will save log file           (Default: %s)\n",DEFAULT_DIR);
+	fprintf(stderr,"\t --help: Print this help and exit\n");
 }
 
 int main(int argc, char *argv[]) {
 	fprintf(stderr,"%s -- v%s\n",SERVER_NAME,SERVER_VERSION);
-	if(argc != 3) {
-		fprintf(stderr,"ERROR: Must specify two arguments.\n");
-		fprintf(stderr,"Usage %s PORT DIRECTORY\n",argv[0]);
-		fprintf(stderr,"\t* PORT:      Port in which webserver will be listening\n");
-		fprintf(stderr,"\t* DIRECTORY: Directory in which the server will scan files to be served\n");
-		return EXIT_FAILURE;
-	}
-	int port = atoi(argv[1]);
-	if(!isPortValid(port)) {
-		fprintf(stderr,"ERROR: Port specified is not valid(%d)\n",port);
-		return EXIT_FAILURE;
-	}
-	if(!isValidPath(argv[2]))
-		return EXIT_FAILURE;
 
+	if(!parseArgs(argc,argv))
+    return EXIT_FAILURE;
+
+  if(show_help()) {
+    help(argc,argv);
+    return EXIT_SUCCESS;
+  }
+
+	set_log_dir(get_log_dir());
 	int pid = 0;
 	int listenfd = 0;
 	int socketfd = 0;
@@ -48,6 +38,8 @@ int main(int argc, char *argv[]) {
 	static struct sockaddr_in serv_addr;
 	socklen_t length = sizeof(cli_addr);
 
+	printf("Listening on port %d\n",get_port());
+
 	if((listenfd = socket(AF_INET, SOCK_STREAM,0)) < 0) {
 		perror("main: socket");
 		return EXIT_FAILURE;
@@ -55,7 +47,7 @@ int main(int argc, char *argv[]) {
 
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serv_addr.sin_port = htons(port);
+	serv_addr.sin_port = htons(get_port());
 
 	if(bind(listenfd, (struct sockaddr *)&serv_addr,sizeof(serv_addr)) == -1) {
 		perror("main: bind");
@@ -93,7 +85,7 @@ int main(int argc, char *argv[]) {
 		}
 		struct req_struct* req = malloc(sizeof(struct req_struct));
 		req->socket = socketfd;
-		req->dirPath = argv[2];
+		req->dirPath = get_working_dir();
 		req->ipAddress = ipAddress;
 
 		pthread_t req_thread;

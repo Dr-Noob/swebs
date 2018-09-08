@@ -2,7 +2,7 @@
 #define __HTTP__
 
 #define SERVER_NAME 		"swebs"
-#define SERVER_VERSION	"1.2"
+#define SERVER_VERSION	"1.3"
 #define MIME_HTML			 	"text/html"
 
 /* HTTP CODE */

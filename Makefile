@@ -5,12 +5,13 @@ MAIN=main.c
 WEBSERVER=webserver.c
 GET=get.c
 LOG=log.c
+ARGS=args.c
 
-HEADERS=webserver.h get.h http.h log.h
+HEADERS=webserver.h get.h http.h log.h args.h
 
 OUTPUT=swebs
 
-$(OUTPUT): Makefile $(MAIN) $(WEBSERVER) $(GET) $(LOG) $(HEADERS)
-	$(CXX) $(SANITY_FLAGS) -g -lm -pthread $(MAIN) $(WEBSERVER) $(GET) $(LOG) -o $(OUTPUT)
+$(OUTPUT): Makefile $(MAIN) $(WEBSERVER) $(GET) $(LOG) $(ARGS) $(HEADERS)
+	$(CXX) $(SANITY_FLAGS) -g -lm -pthread $(MAIN) $(WEBSERVER) $(GET) $(LOG) $(ARGS) -o $(OUTPUT)
 clean:
 	rm $(OUTPUT)
